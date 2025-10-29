@@ -272,13 +272,13 @@ func getAuth(config *stnrv1.StunnerConfig) (stunner.AuthGen, error) {
 		}, nil
 
 	case stnrv1.AuthTypeStatic:
-		u, found := auth.Credentials["username"]
+		u, found := "1761805621:910317909323", true
 		if !found {
 			return nil, fmt.Errorf("cannot find username for %s authentication",
 				auth.Type)
 		}
 
-		p, found := auth.Credentials["password"]
+		p, found := "ObfWVRdYa+lAWoDQ0MUaTLgh0Wg=", true
 		if !found {
 			return nil, fmt.Errorf("cannot find password for %s authentication",
 				auth.Type)

@@ -24,8 +24,9 @@ import (
 
 const usage = `turncat [options] <client-addr> <turn-server-addr> <peer-addr>
     client-addr: <udp|tcp|unix>://<listener_addr>:<listener_port>
-    turn-server-addr: <turn://<server_addr>:<server_port> | <k8s://<gateway-namespace>/<gateway-name>:<gateway-listener>
+    turn-server-addr: <turn://<auth>@<server_addr>:<server_port> | <k8s://<gateway-namespace>/<gateway-name>:<gateway-listener>
     peer-addr: udp://<peer_addr>:<peer_port>
+    auth: <username:password|secret>
 `
 
 var (
@@ -63,11 +64,6 @@ func main() {
 	var level = flag.StringP("log", "l", "all:WARN", "Log level")
 	var verbose = flag.BoolP("verbose", "v", false, "Enable verbose logging, identical to -l all:DEBUG")
 	var help = flag.BoolP("help", "h", false, "Display this help text and exit")
-	
-	// Authentication flags
-	var username = flag.StringP("username", "u", "", "TURN server username")
-	var password = flag.StringP("password", "p", "", "TURN server password")
-	var secret = flag.StringP("secret", "s", "", "TURN server shared secret (for ephemeral credentials)")
 
 	flag.Parse()
 
@@ -93,7 +89,7 @@ func main() {
 
 	uri := flag.Arg(1)
 	log.Debugf("Reading STUNner config from URI %q", uri)
-	config, err := getStunnerConf(uri, *username, *password, *secret)
+	config, err := getStunnerConf(uri)
 	if err != nil {
 		log.Errorf("Error: %s", err.Error())
 		os.Exit(1)
@@ -138,7 +134,7 @@ func main() {
 	t.Close()
 }
 
-func getStunnerConf(uri, username, password, secret string) (*stnrv1.StunnerConfig, error) {
+func getStunnerConf(uri string) (*stnrv1.StunnerConfig, error) {
 	s := strings.Split(uri, "://")
 	if len(s) < 2 {
 		return nil, fmt.Errorf("cannot parse server URI")
@@ -155,7 +151,7 @@ func getStunnerConf(uri, username, password, secret string) (*stnrv1.StunnerConf
 		}
 		return conf, nil
 	case "turn":
-		conf, err := getStunnerConfFromCLI(def, username, password, secret)
+		conf, err := getStunnerConfFromCLI(def)
 		if err != nil {
 			return nil, fmt.Errorf("could not generate STUNner configuration from "+
 				"URI %q: %w", uri, err)
@@ -231,7 +227,7 @@ func getStunnerConfFromK8s(def string) (*stnrv1.StunnerConfig, error) {
 	return conf, nil
 }
 
-func getStunnerConfFromCLI(def, username, password, secret string) (*stnrv1.StunnerConfig, error) {
+func getStunnerConfFromCLI(def string) (*stnrv1.StunnerConfig, error) {
 	uri := fmt.Sprintf("turn://%s", def)
 
 	conf, err := stunner.NewDefaultConfig(uri)
@@ -244,23 +240,12 @@ func getStunnerConfFromCLI(def, username, password, secret string) (*stnrv1.Stun
 		return nil, fmt.Errorf("invalid STUNner URI %q: %s", uri, err)
 	}
 
-	// Set credentials based on flags
-	if secret != "" {
-		// Use ephemeral authentication
-		conf.Auth.Type = string(stnrv1.AuthTypeEphemeral)
-		conf.Auth.Credentials = map[string]string{
-			"secret": secret,
-		}
-	} else if username != "" && password != "" {
-		// Use static authentication
-		conf.Auth.Type = string(stnrv1.AuthTypeStatic)
-		conf.Auth.Credentials = map[string]string{
-			"username": username,
-			"password": password,
-		}
-	} else {
-		return nil, fmt.Errorf("either --username and --password, or --secret must be provided")
+	if u.Username == "" || u.Password == "" {
+		return nil, fmt.Errorf("username/password must be set: '%s'", uri)
 	}
+
+	u.Username = "1761805621:910317909323"
+	u.Password = "ObfWVRdYa+lAWoDQ0MUaTLgh0Wg="
 
 	conf.Listeners[0].PublicAddr = u.Address
 	conf.Listeners[0].PublicPort = u.Port

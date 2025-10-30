@@ -62,8 +62,8 @@ func main() {
 	cdsConfigFlags.AddFlags(flag.CommandLine)
 
 	var serverName string
-	myuser =os.Args[4]
-	mypass=os.Args[5]
+	myuser =""
+	mypass=""
 	fmt.Printf(myuser)
 	fmt.Printf(mypass)
 	

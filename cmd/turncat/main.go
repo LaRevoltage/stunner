@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -44,6 +45,31 @@ var (
 var myuser string
 var mypass string
 
+// Config structure for conf.json
+type Config struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// loadConfig reads and parses conf.json
+func loadConfig(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var config Config
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	if config.Username == "" || config.Password == "" {
+		return nil, fmt.Errorf("username and password must be set in config file")
+	}
+
+	return &config, nil
+}
+
 func main() {
 	var Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
@@ -62,19 +88,14 @@ func main() {
 	cdsConfigFlags.AddFlags(flag.CommandLine)
 
 	var serverName string
-	myuser =""
-	mypass=""
-	fmt.Printf(myuser)
-	fmt.Printf(mypass)
-	
+	var configFile = flag.StringP("config", "c", "conf.json", "Path to config file")
 	var insecure = flag.BoolP("insecure", "i", false, "Insecure TLS mode, accept self-signed TURN server certificates (default: false)")
 	var level = flag.StringP("log", "l", "all:WARN", "Log level")
 	var verbose = flag.BoolP("verbose", "v", false, "Enable verbose logging, identical to -l all:DEBUG")
 	var help = flag.BoolP("help", "h", false, "Display this help text and exit")
 
 	flag.Parse()
-    fmt.Printf(myuser)
-	fmt.Printf(mypass)
+
 	if *help {
 		Usage()
 		os.Exit(0)
@@ -92,26 +113,44 @@ func main() {
 	loggerFactory = logger.NewLoggerFactory(*level)
 	log = loggerFactory.NewLogger("turncat-cli")
 
+	// Load credentials from config file
+	config, err := loadConfig(*configFile)
+	if err != nil {
+		log.Errorf("Error loading config: %s", err)
+		os.Exit(1)
+	}
+
+	myuser = config.Username
+	mypass = config.Password
+
+	if *verbose {
+		*level = "all:DEBUG"
+	}
+
+	loggerFactory = logger.NewLoggerFactory(*level)
+	log = loggerFactory.NewLogger("turncat-cli")
+
 	buildInfo := buildinfo.BuildInfo{Version: version, CommitHash: commitHash, BuildDate: buildDate}
 	log.Debugf("Starting turncat %s", buildInfo.String())
+	log.Debugf("Loaded credentials for user: %s", myuser)
 
 	uri := flag.Arg(1)
 	log.Debugf("Reading STUNner config from URI %q", uri)
-	config, err := getStunnerConf(uri)
+	stunnerConf, err := getStunnerConf(uri)
 	if err != nil {
 		log.Errorf("Error: %s", err.Error())
 		os.Exit(1)
 	}
 
 	log.Debug("Generating STUNner authentication client")
-	authGen, err := getAuth(config)
+	authGen, err := getAuth(stunnerConf)
 	if err != nil {
 		log.Errorf("Could not create STUNner authentication client: %s", err.Error())
 		os.Exit(1)
 	}
 
 	log.Debug("Generating STUNner URI")
-	stunnerURI, err := getStunnerURI(config)
+	stunnerURI, err := getStunnerURI(stunnerConf)
 	if err != nil {
 		log.Errorf("Could not create STUNner URI: %s", err.Error())
 		os.Exit(1)
@@ -122,7 +161,7 @@ func main() {
 		ListenerAddr:  flag.Arg(0),
 		ServerAddr:    stunnerURI,
 		PeerAddr:      flag.Arg(2),
-		Realm:         config.Auth.Realm,
+		Realm:         stunnerConf.Auth.Realm,
 		AuthGen:       authGen,
 		ServerName:    serverName,
 		InsecureMode:  *insecure,
@@ -248,10 +287,7 @@ func getStunnerConfFromCLI(def string) (*stnrv1.StunnerConfig, error) {
 		return nil, fmt.Errorf("invalid STUNner URI %q: %s", uri, err)
 	}
 
-	if u.Username == "" || u.Password == "" {
-		return nil, fmt.Errorf("username/password must be set: '%s'", uri)
-	}
-
+	// Use credentials from config file
 	u.Username = myuser
 	u.Password = mypass
 
@@ -280,17 +316,9 @@ func getAuth(config *stnrv1.StunnerConfig) (stunner.AuthGen, error) {
 		}, nil
 
 	case stnrv1.AuthTypeStatic:
-		u, found := "1761805621:910317909323", true
-		if !found {
-			return nil, fmt.Errorf("cannot find username for %s authentication",
-				auth.Type)
-		}
-
-		p, found := "ObfWVRdYa+lAWoDQ0MUaTLgh0Wg=", true
-		if !found {
-			return nil, fmt.Errorf("cannot find password for %s authentication",
-				auth.Type)
-		}
+		// Use credentials from config file
+		u := myuser
+		p := mypass
 
 		return func() (string, string, error) { return u, p, nil }, nil
 

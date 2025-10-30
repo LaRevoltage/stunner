@@ -61,6 +61,8 @@ func main() {
 	var serverName string
 	var myuser string
 	var mypass string
+	fmt.Printf(myuser)
+	fmt.Printf(mypass)
 	flag.StringVar(&serverName, "sni", "", "Server name (SNI) for TURN/TLS client connections")
 	flag.StringVar(&mypass, "mypass", "", "mypass")
 	var insecure = flag.BoolP("insecure", "i", false, "Insecure TLS mode, accept self-signed TURN server certificates (default: false)")

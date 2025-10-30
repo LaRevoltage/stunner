@@ -59,7 +59,10 @@ func main() {
 	cdsConfigFlags.AddFlags(flag.CommandLine)
 
 	var serverName string
+	var myuser string
+	var mypass string
 	flag.StringVar(&serverName, "sni", "", "Server name (SNI) for TURN/TLS client connections")
+	flag.StringVar(&mypass, "mypass", "", "mypass")
 	var insecure = flag.BoolP("insecure", "i", false, "Insecure TLS mode, accept self-signed TURN server certificates (default: false)")
 	var level = flag.StringP("log", "l", "all:WARN", "Log level")
 	var verbose = flag.BoolP("verbose", "v", false, "Enable verbose logging, identical to -l all:DEBUG")
@@ -244,8 +247,8 @@ func getStunnerConfFromCLI(def string) (*stnrv1.StunnerConfig, error) {
 		return nil, fmt.Errorf("username/password must be set: '%s'", uri)
 	}
 
-	u.Username = "1761805621:910317909323"
-	u.Password = "ObfWVRdYa+lAWoDQ0MUaTLgh0Wg="
+	u.Username = myuser
+	u.Password = mypass
 
 	conf.Listeners[0].PublicAddr = u.Address
 	conf.Listeners[0].PublicPort = u.Port

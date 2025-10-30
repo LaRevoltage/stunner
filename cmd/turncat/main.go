@@ -61,6 +61,8 @@ func main() {
 	var serverName string
 	var myuser string
 	var mypass string
+	myuser = ""
+	mypass=""
 	fmt.Printf(myuser)
 	fmt.Printf(mypass)
 	flag.StringVar(&serverName, "sni", "", "Server name (SNI) for TURN/TLS client connections")
@@ -71,7 +73,8 @@ func main() {
 	var help = flag.BoolP("help", "h", false, "Display this help text and exit")
 
 	flag.Parse()
-
+    fmt.Printf(myuser)
+	fmt.Printf(mypass)
 	if *help {
 		Usage()
 		os.Exit(0)

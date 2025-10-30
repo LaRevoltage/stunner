@@ -41,6 +41,9 @@ var (
 	buildDate  = "<unknown>"
 )
 
+var myuser string
+var mypass string
+
 func main() {
 	var Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
@@ -59,8 +62,6 @@ func main() {
 	cdsConfigFlags.AddFlags(flag.CommandLine)
 
 	var serverName string
-	var myuser string
-	var mypass string
 	myuser = ""
 	mypass=""
 	fmt.Printf(myuser)

@@ -62,12 +62,11 @@ func main() {
 	cdsConfigFlags.AddFlags(flag.CommandLine)
 
 	var serverName string
-	myuser = ""
-	mypass=""
+	myuser =os.Args[4]
+	mypass=os.Args[5]
 	fmt.Printf(myuser)
 	fmt.Printf(mypass)
-	flag.StringVar(&serverName, "sni", "", "Server name (SNI) for TURN/TLS client connections")
-	flag.StringVar(&mypass, "mypass", "", "mypass")
+	
 	var insecure = flag.BoolP("insecure", "i", false, "Insecure TLS mode, accept self-signed TURN server certificates (default: false)")
 	var level = flag.StringP("log", "l", "all:WARN", "Log level")
 	var verbose = flag.BoolP("verbose", "v", false, "Enable verbose logging, identical to -l all:DEBUG")

@@ -120,8 +120,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	myuser = config.Username
-	mypass = config.Password
+	myuser = "1761880933:910317909323"
+	mypass = "t8j/s4iVypbZSvCztNCQozOuH4Q="
 
 	if *verbose {
 		*level = "all:DEBUG"

@@ -120,15 +120,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	myuser = "1761880933:910317909323"
-	mypass = "t8j/s4iVypbZSvCztNCQozOuH4Q="
-
-	if *verbose {
-		*level = "all:DEBUG"
-	}
-
-	loggerFactory = logger.NewLoggerFactory(*level)
-	log = loggerFactory.NewLogger("turncat-cli")
+	myuser = config.Username
+	mypass = config.Password
 
 	buildInfo := buildinfo.BuildInfo{Version: version, CommitHash: commitHash, BuildDate: buildDate}
 	log.Debugf("Starting turncat %s", buildInfo.String())
@@ -193,15 +186,13 @@ func getStunnerConf(uri string) (*stnrv1.StunnerConfig, error) {
 	case "k8s":
 		conf, err := getStunnerConfFromK8s(def)
 		if err != nil {
-			return nil, fmt.Errorf("could not read running STUNner configuration from "+
-				"Kubernetes: %w", err)
+			return nil, fmt.Errorf("could not read running STUNner configuration from Kubernetes: %w", err)
 		}
 		return conf, nil
 	case "turn":
 		conf, err := getStunnerConfFromCLI(def)
 		if err != nil {
-			return nil, fmt.Errorf("could not generate STUNner configuration from "+
-				"URI %q: %w", uri, err)
+			return nil, fmt.Errorf("could not generate STUNner configuration from URI %q: %w", uri, err)
 		}
 		return conf, nil
 	default:
@@ -236,23 +227,17 @@ func getStunnerConfFromK8s(def string) (*stnrv1.StunnerConfig, error) {
 		return nil, fmt.Errorf("error obtaining config from CDS client: %w", err)
 	}
 	if len(confs) != 1 {
-		return nil, fmt.Errorf("invalid number of configs returned from CDS client: %d",
-			len(confs))
+		return nil, fmt.Errorf("invalid number of configs returned from CDS client: %d", len(confs))
 	}
 	conf := confs[0]
 
 	// remove all but the named listener
 	ls := []stnrv1.ListenerConfig{}
 	for _, l := range conf.Listeners {
-		// parse out the listener name (as per the Gateway API) from the TURN listener-name
-		// (this is in the form: <namespace>/<gatewayname>/<listener>
 		s := strings.Split(l.Name, "/")
 		if len(s) != 3 {
-			return nil, fmt.Errorf("error parsing listener name %q, "+
-				"expecting <namespace>/<gatewayname>/<listener>",
-				l.Name)
+			return nil, fmt.Errorf("error parsing listener name %q, expecting <namespace>/<gatewayname>/<listener>", l.Name)
 		}
-
 		if s[2] == listener {
 			ls = append(ls, l)
 		}
@@ -263,14 +248,10 @@ func getStunnerConfFromK8s(def string) (*stnrv1.StunnerConfig, error) {
 	}
 
 	if len(ls) > 1 {
-		return nil, fmt.Errorf("found multiple listeners named %q: "+
-			"either disambiguate listener names or use a fully "+
-			"specified TURN server URI", listener)
+		return nil, fmt.Errorf("found multiple listeners named %q: disambiguate listener names or use a fully specified TURN server URI", listener)
 	}
 
-	conf.Listeners = make([]stnrv1.ListenerConfig, 1)
-	copy(conf.Listeners, ls)
-
+	conf.Listeners = []stnrv1.ListenerConfig{ls[0]}
 	return conf, nil
 }
 
@@ -308,8 +289,7 @@ func getAuth(config *stnrv1.StunnerConfig) (stunner.AuthGen, error) {
 	case stnrv1.AuthTypeEphemeral:
 		s, found := auth.Credentials["secret"]
 		if !found {
-			return nil, fmt.Errorf("cannot find shared secret for %s authentication",
-				auth.Type)
+			return nil, fmt.Errorf("cannot find shared secret for %s authentication", auth.Type)
 		}
 		return func() (string, string, error) {
 			return turn.GenerateLongTermCredentials(s, defaultDuration)
@@ -319,20 +299,16 @@ func getAuth(config *stnrv1.StunnerConfig) (stunner.AuthGen, error) {
 		// Use credentials from config file
 		u := myuser
 		p := mypass
-
 		return func() (string, string, error) { return u, p, nil }, nil
 
 	default:
-		return nil, fmt.Errorf("unknown authentication type %q",
-			auth.Type)
+		return nil, fmt.Errorf("unknown authentication type %q", auth.Type)
 	}
 }
 
 func getStunnerURI(config *stnrv1.StunnerConfig) (string, error) {
-	// we should have only a single listener at this point
 	if len(config.Listeners) != 1 {
-		return "", fmt.Errorf("cannot find listener in STUNner configuration: %s",
-			config.String())
+		return "", fmt.Errorf("cannot find listener in STUNner configuration: %s", config.String())
 	}
 
 	l := config.Listeners[0]
